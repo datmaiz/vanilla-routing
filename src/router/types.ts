@@ -12,3 +12,8 @@ export interface Route {
 	children?: Route[]
 	cache?: boolean
 }
+
+export interface RouteMatch {
+	route: Route
+	params: Record<string, string>
+}

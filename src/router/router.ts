@@ -1,53 +1,66 @@
-import { routes } from './routes'
-import { findMatch } from './routeMatcher'
+import { findMatches } from './routeMatcher'
+import { cacheView, getCachedView } from './routerCache'
 import { setRouteContext } from './routerContext'
-import { getCachedView, cacheView } from './routerCache'
+import { routes } from './routes'
+import { ViewResult } from './types'
 
-export async function router(): Promise<void> {
+function extractView(view: ViewResult) {
+	return typeof view === 'string' ? { html: view, setup: undefined } : { html: view.html, setup: view.setup }
+}
+
+export async function router() {
 	const app = document.querySelector('#app') as HTMLElement
 	const spinner = document.querySelector('#loading-spinner') as HTMLElement
 
-	const showSpinner = () => spinner?.classList.remove('hidden')
-	const hideSpinner = () => spinner?.classList.add('hidden')
-
-	showSpinner()
+	spinner?.classList.remove('hidden')
 	app.classList.add('fade-out')
 
-	const match = findMatch(routes)
-	if (!match) {
-		hideSpinner()
+	const matches = await findMatches(routes)
+	if (!matches || matches.length === 0) {
+		spinner?.classList.add('hidden')
 		const notFound = (await import('../views/NotFound')).default
-		app.innerHTML = notFound()
+		const view = extractView(notFound())
+		app.innerHTML = view.html
+		view.setup?.()
 		return
 	}
 
-	const { route, params, query } = match
+	const lastMatch = matches[matches.length - 1]
 	const pathname = location.pathname
+	const query = Object.fromEntries(new URLSearchParams(location.search).entries())
 
 	const cachedView = getCachedView(pathname)
-	const viewFn = cachedView || (await route.view()).default
-
-	if (!cachedView && route.cache) {
+	const viewFn = cachedView || (await lastMatch.route.view()).default
+	if (!cachedView && lastMatch.route.cache) {
 		cacheView(pathname, viewFn)
 	}
 
+	const view = extractView(viewFn())
+	let html = view.html
+
+	// Áp dụng layout từ trong ra ngoài
+	for (let i = matches.length - 2; i >= 0; i--) {
+		const parent = matches[i].route
+		if (parent.layout) {
+			html = parent.layout({ children: html })
+		}
+	}
+
 	setRouteContext({
-		params,
+		params: lastMatch.params,
 		query,
 		pathname,
 		navigateTo,
+		goBack: () => history.back(),
+		goForward: () => history.forward(),
+		isActive: href => decodeURI(href) === decodeURI(pathname),
 	})
 
-	const content = viewFn()
-	const html = typeof content === 'string' ? content : content.html
-	const setup = typeof content === 'string' ? undefined : content.setup
-	const layout = route.layout ? route.layout({ children: html }) : html
+	app.innerHTML = html
+	view.setup?.()
 
-	app.innerHTML = layout
 	window.scrollTo(0, 0)
-	setup?.()
-
-	hideSpinner()
+	spinner?.classList.add('hidden')
 	app.classList.remove('fade-out')
 }
 
@@ -69,3 +82,5 @@ export function initRouter(): void {
 
 	router()
 }
+
+// const query = Object.fromEntries(new URLSearchParams(location.search).entries())

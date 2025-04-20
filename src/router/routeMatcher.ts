@@ -1,56 +1,51 @@
-import { Route } from './types'
+import { Route, RouteMatch } from './types'
 
-interface MatchResult {
-	route: Route
-	params: Record<string, string>
-	query: Record<string, string>
-}
+function matchPath(
+	routePath: string,
+	pathSegments: string[]
+): { matched: boolean; params: Record<string, string>; consumed: number } {
+	const routeSegments = routePath.split('/').filter(Boolean)
+	if (routeSegments.length > pathSegments.length) return { matched: false, params: {}, consumed: 0 }
 
-function parseQuery(queryString: string): Record<string, string> {
-	const query: Record<string, string> = {}
-	const searchParams = new URLSearchParams(queryString)
-	for (const [key, value] of searchParams.entries()) {
-		query[key] = value
+	const params: Record<string, string> = {}
+	for (let i = 0; i < routeSegments.length; i++) {
+		const r = routeSegments[i]
+		const p = pathSegments[i]
+		if (r.startsWith(':')) {
+			params[r.slice(1)] = p
+		} else if (r !== p) {
+			return { matched: false, params: {}, consumed: 0 }
+		}
 	}
-	return query
+	return { matched: true, params, consumed: routeSegments.length }
 }
 
-function pathToRegex(path: string): { regex: RegExp; keys: string[] } {
-	const keys: string[] = []
-	const regexStr = path.replace(/\//g, '/').replace(/:(\w+)/g, (_, key) => {
-		keys.push(key)
-		return '([^/]+)'
-	})
-	return { regex: new RegExp(`^${regexStr}$`), keys }
-}
+export async function findMatches(
+	routes: Route[],
+	pathSegments = location.pathname.split('/').filter(Boolean),
+	basePath = ''
+): Promise<RouteMatch[] | null> {
+	for (const route of routes) {
+		const { matched, params, consumed } = matchPath(route.path, pathSegments)
+		if (!matched) continue
 
-function matchPath(pathname: string, route: Route, parentPath = ''): MatchResult | null {
-	const fullPath = (parentPath + '/' + route.path).replace(/\/+/g, '/').replace(/\/$/, '') || '/'
-	const { regex, keys } = pathToRegex(fullPath)
-	const match = regex.exec(pathname)
+		const matchedRoute: RouteMatch = {
+			route,
+			params,
+		}
 
-	if (match) {
-		const params: Record<string, string> = {}
-		keys.forEach((key, i) => (params[key] = match[i + 1]))
-		const query = parseQuery(location.search)
-		return { route, params, query }
-	}
+		if (route.children) {
+			const childSegments = pathSegments.slice(consumed)
+			const childMatches = await findMatches(route.children, childSegments, basePath + '/' + route.path)
+			if (childMatches) {
+				return [matchedRoute, ...childMatches]
+			}
+		}
 
-	if (route.children) {
-		for (const child of route.children) {
-			const childMatch = matchPath(pathname, child, fullPath)
-			if (childMatch) return childMatch
+		if (consumed === pathSegments.length) {
+			return [matchedRoute]
 		}
 	}
 
-	return null
-}
-
-export function findMatch(routes: Route[]): MatchResult | null {
-	const pathname = location.pathname
-	for (const route of routes) {
-		const match = matchPath(pathname, route)
-		if (match) return match
-	}
 	return null
 }

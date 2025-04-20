@@ -1,4 +1,7 @@
+import { useRouteContext } from '../router/routerContext'
+
 export default function HomePage() {
+	const { goForward } = useRouteContext()
 	return {
 		html: /* html */ `
     <div>
@@ -11,6 +14,7 @@ export default function HomePage() {
 			const button = document.getElementById('button')!
 			button.onclick = () => {
 				console.log('Clicked')
+				goForward()
 			}
 		},
 	}

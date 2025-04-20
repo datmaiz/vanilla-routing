@@ -3,6 +3,9 @@ export interface RouteContext {
 	query: Record<string, string>
 	pathname: string
 	navigateTo: (path: string) => void
+	goBack: () => void
+	goForward: () => void
+	isActive: (href: string) => boolean
 }
 
 let currentCtx: RouteContext = {
@@ -10,6 +13,9 @@ let currentCtx: RouteContext = {
 	query: {},
 	pathname: '/',
 	navigateTo: () => {},
+	goBack: () => {},
+	goForward: () => {},
+	isActive: () => false,
 }
 
 export function setRouteContext(ctx: RouteContext) {
