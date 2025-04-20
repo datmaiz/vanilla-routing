@@ -1,9 +1,11 @@
-const viewCache = new Map<string, () => string>()
+import { ViewResult } from './types'
 
-export function getCachedView(pathname: string): (() => string) | undefined {
+const viewCache = new Map<string, () => ViewResult>()
+
+export function getCachedView(pathname: string) {
 	return viewCache.get(pathname)
 }
 
-export function cacheView(pathname: string, viewFn: () => string): void {
+export function cacheView(pathname: string, viewFn: () => ViewResult): void {
 	viewCache.set(pathname, viewFn)
 }

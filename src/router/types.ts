@@ -7,9 +7,8 @@ export type ViewResult =
 
 export interface Route {
 	path: string
-	view: () => Promise<{ default: () => string } | { default: () => { html: string; setup: () => void } }>
-	layout?: (args: { children: string }) => string
-	cache?: boolean
+	view: () => Promise<{ default: () => ViewResult }>
+	layout?: (props: { children: string }) => string
 	children?: Route[]
-	parent?: Route
+	cache?: boolean
 }

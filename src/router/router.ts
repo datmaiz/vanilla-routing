@@ -39,10 +39,13 @@ export async function router(): Promise<void> {
 	})
 
 	const content = viewFn()
-	const layout = route.layout ? route.layout({ children: content }) : content
+	const html = typeof content === 'string' ? content : content.html
+	const setup = typeof content === 'string' ? undefined : content.setup
+	const layout = route.layout ? route.layout({ children: html }) : html
 
 	app.innerHTML = layout
 	window.scrollTo(0, 0)
+	setup?.()
 
 	hideSpinner()
 	app.classList.remove('fade-out')
