@@ -1,20 +1,27 @@
-import { useRouteContext } from '../router/routerContext'
+import { createState } from '../router/state'
 
 export default function HomePage() {
-	const { goForward } = useRouteContext()
 	return {
 		html: /* html */ `
     <div>
       <h1>Home Page</h1>
       <a data-link href="/dashboard">To Dashboard</a>
       <button id="button">Click me</button>
+			<p id="count">0</p>
     </div>
   `,
 		setup() {
 			const button = document.getElementById('button')!
+			const count = document.getElementById('count')!
+
+			const { get, set, subscribe } = createState(0)
+
+			subscribe(state => {
+				count.textContent = state.toString()
+			})
+
 			button.onclick = () => {
-				console.log('Clicked')
-				goForward()
+				set(get() + 1)
 			}
 		},
 	}
